@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Setter
@@ -27,8 +29,11 @@ public class User {
 
     private String organization;
 
-    private boolean enabled = true;
+    private boolean activated = false;
 
     @Enumerated(EnumType.STRING)
     private UserRole role;
+
+    private String activationToken;
+    private LocalDateTime activationTokenExpiry;
 }

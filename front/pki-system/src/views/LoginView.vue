@@ -11,16 +11,20 @@ const showPassword = ref(false);
 
 const login = async () => {
   try {
-    const token = await axios.post("/auth/login", {
+    const response = await axios.post("/auth/login", {
       email: email.value,
       password: password.value
-    }).then(res => res.data);
+    });
+
+    const { token, userId, email: userEmail, userRole } = response.data;
 
     localStorage.setItem("authToken", token);
+    localStorage.setItem("userId", userId);
+    localStorage.setItem("userEmail", userEmail);
+    localStorage.setItem("userRole", userRole);
 
-    alert("Login successful!");
-
-    router.push("/");
+    // refresh and redirect to home
+    window.location.href = "/";
   } catch (error) {
     console.error("Login failed:", error.response?.data || error.message);
     alert(`Login failed: ${error.response?.data?.message || error.message}`);

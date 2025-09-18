@@ -4,9 +4,20 @@ import { useRouter } from "vue-router";
 
 const router = useRouter();
 const isAuthenticated = ref(false);
+const userRole = ref("");
+const userId = ref("");
 
 const checkAuth = () => {
-  isAuthenticated.value = !!localStorage.getItem("authToken");
+  const token = localStorage.getItem("authToken");
+  isAuthenticated.value = !!token;
+
+  if (isAuthenticated.value) {
+    userRole.value = localStorage.getItem("userRole") || "";
+    userId.value = localStorage.getItem("userId") || "";
+  } else {
+    userRole.value = "";
+    userId.value = "";
+  }
 };
 
 onMounted(() => {
@@ -15,7 +26,11 @@ onMounted(() => {
 
 const logout = () => {
   localStorage.removeItem("authToken");
+  localStorage.removeItem("userRole");
+  localStorage.removeItem("userId");
   isAuthenticated.value = false;
+  userRole.value = "";
+  userId.value = "";
   router.push("/login");
 };
 </script>
@@ -30,8 +45,18 @@ const logout = () => {
               MyApp
             </RouterLink>
 
-            <!-- Show Login/Register or Logout -->
+            <!-- Show different links depending on auth state -->
             <template v-if="isAuthenticated">
+              <span class="text-sm text-gray-200">
+                <b>{{ userRole }}</b> (ID: {{ userId }})
+              </span>
+              <RouterLink
+                v-if="userRole === 'BASIC'"
+                to="/test"
+                class="hover:text-gray-200"
+              >
+                Test
+              </RouterLink>
               <button @click="logout" class="hover:text-gray-200">
                 Logout
               </button>

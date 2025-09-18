@@ -1,7 +1,12 @@
 <script setup>
 import { ref, computed } from "vue";
+import axios from "axios";
 import zxcvbn from "zxcvbn";
+import { useRouter } from "vue-router";
 
+const router = useRouter();
+
+// Form fields
 const name = ref("");
 const surname = ref("");
 const email = ref("");
@@ -9,9 +14,14 @@ const organization = ref("");
 const password = ref("");
 const confirmPassword = ref("");
 
+// Password visibility
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 
+// Dialog visibility
+const showDialog = ref(false);
+
+// Password strength
 const passwordScore = computed(() => {
   if (!password.value) return 0;
   return zxcvbn(password.value).score; // 0-4
@@ -27,6 +37,35 @@ const strengthLabel = computed(() => {
     default: return { text: "", color: "text-gray-500", bar: "bg-gray-300" };
   }
 });
+
+// Submit registration
+const register = async () => {
+  if (password.value !== confirmPassword.value) {
+    alert("Passwords do not match!");
+    return;
+  }
+
+  const payload = {
+    name: name.value,
+    surname: surname.value,
+    email: email.value,
+    password: password.value,
+    organization: organization.value
+  };
+
+  try {
+    await axios.post("http://localhost:8080/auth/register", payload);
+    showDialog.value = true;
+  } catch (error) {
+    console.error("Registration failed:", error.response?.data || error.message);
+    alert(`Registration failed: ${error.response?.data?.message || error.message}`);
+  }
+};
+
+const closeDialog = () => {
+  showDialog.value = false;
+  router.push("/login");
+};
 </script>
 
 <template>
@@ -43,7 +82,7 @@ const strengthLabel = computed(() => {
     </div>
 
     <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-      <form @submit.prevent class="space-y-6">
+      <form @submit.prevent="register" class="space-y-6">
         <!-- Name -->
         <div>
           <label for="name" class="block text-sm font-medium text-gray-900">First Name</label>
@@ -136,6 +175,23 @@ const strengthLabel = computed(() => {
           Sign in here
         </RouterLink>
       </p>
+    </div>
+
+    <!-- Email check dialog -->
+    <div v-if="showDialog" class="fixed inset-0 flex items-center justify-center bg-gray-200 bg-opacity-30 z-50">
+        <div class="bg-white rounded-lg shadow-lg max-w-sm w-full p-6 text-center">
+            <h3 class="text-lg font-semibold text-gray-900">Check Your Email</h3>
+            <p class="mt-4 text-gray-700">
+            We've sent a confirmation email to <span class="font-medium">{{ email }}</span>. 
+            Please check your inbox to activate your account before logging in.
+            </p>
+            <button
+            @click="closeDialog"
+            class="mt-6 inline-flex justify-center rounded-md bg-indigo-600 px-4 py-2 text-white font-medium hover:bg-indigo-500"
+            >
+            OK
+            </button>
+        </div>
     </div>
   </div>
 </template>

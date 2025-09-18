@@ -42,3 +42,6 @@ build/
 # Temporary files
 *.tmp
 *.swp
+
+# Email credentials
+src/main/resources/email.properties

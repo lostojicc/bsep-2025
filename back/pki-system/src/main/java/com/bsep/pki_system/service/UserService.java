@@ -5,6 +5,7 @@ import com.bsep.pki_system.model.User;
 import com.bsep.pki_system.model.UserRole;
 import com.bsep.pki_system.repository.UserRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 

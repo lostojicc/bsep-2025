@@ -26,15 +26,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterDTO request) {
-        User user = new User();
-        user.setName(request.getName());
-        user.setSurname(request.getSurname());
-        user.setEmail(request.getEmail());
-        user.setPassword(request.getPassword());
-        user.setOrganization(request.getOrganization());
-        user.setRole(UserRole.BASIC);
-
-        User savedUser = userService.registerUser(user);
+        User savedUser = userService.registerUser(request);
         return ResponseEntity.ok("User registered with ID: " + savedUser.getId());
     }
 

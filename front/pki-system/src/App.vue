@@ -1,4 +1,23 @@
 <script setup>
+import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
+
+const router = useRouter();
+const isAuthenticated = ref(false);
+
+const checkAuth = () => {
+  isAuthenticated.value = !!localStorage.getItem("authToken");
+};
+
+onMounted(() => {
+  checkAuth();
+});
+
+const logout = () => {
+  localStorage.removeItem("authToken");
+  isAuthenticated.value = false;
+  router.push("/login");
+};
 </script>
 
 <template>
@@ -10,12 +29,21 @@
             <RouterLink to="/" class="text-lg font-semibold hover:text-gray-200">
               MyApp
             </RouterLink>
-            <RouterLink to="/login" class="hover:text-gray-200">
-              Login
-            </RouterLink>
-            <RouterLink to="/register" class="hover:text-gray-200">
-              Register
-            </RouterLink>
+
+            <!-- Show Login/Register or Logout -->
+            <template v-if="isAuthenticated">
+              <button @click="logout" class="hover:text-gray-200">
+                Logout
+              </button>
+            </template>
+            <template v-else>
+              <RouterLink to="/login" class="hover:text-gray-200">
+                Login
+              </RouterLink>
+              <RouterLink to="/register" class="hover:text-gray-200">
+                Register
+              </RouterLink>
+            </template>
           </div>
         </div>
       </div>
@@ -26,6 +54,3 @@
     </main>
   </div>
 </template>
-
-<style scoped>
-</style>

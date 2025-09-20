@@ -75,8 +75,4 @@ public class UserService {
 
         return "User has been activated successfully";
     }
-
-    public String generateActivationToken() {
-        return UUID.randomUUID().toString();
-    }
 }

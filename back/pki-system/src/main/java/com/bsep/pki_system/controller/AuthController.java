@@ -6,13 +6,17 @@ import com.bsep.pki_system.dto.RegisterDTO;
 import com.bsep.pki_system.jwt.JwtService;
 import com.bsep.pki_system.model.User;
 import com.bsep.pki_system.model.UserRole;
+import com.bsep.pki_system.model.UserSession;
 import com.bsep.pki_system.service.CaptchaService;
 import com.bsep.pki_system.service.UserService;
+import com.bsep.pki_system.service.UserSessionService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -22,11 +26,13 @@ public class AuthController {
     private final UserService userService;
     private final JwtService jwtService;
     private final CaptchaService captchaService;
+    private final UserSessionService sessionService;
 
-    public AuthController(UserService userService, JwtService jwtService, CaptchaService captchaService) {
+    public AuthController(UserService userService, JwtService jwtService, CaptchaService captchaService, UserSessionService sessionService) {
         this.userService = userService;
         this.jwtService = jwtService;
         this.captchaService = captchaService;
+        this.sessionService = sessionService;
     }
 
     @PostMapping("/register")
@@ -46,7 +52,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginDTO request) {
+    public ResponseEntity<?> login(@RequestBody LoginDTO request, HttpServletRequest httpRequest) {
         if (!captchaService.verifyToken(request.getRecaptchaToken())) {
             return ResponseEntity.badRequest().body("Captcha verification failed");
         }
@@ -60,7 +66,10 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Account not activated!");
         }
 
-        String token = jwtService.generateToken(user);
+        String ip = httpRequest.getRemoteAddr();
+        String userAgent = httpRequest.getHeader("User-Agent");
+
+        String token = jwtService.generateToken(user, ip , userAgent);
 
         return ResponseEntity.ok(new LoginResponseDTO(token,user.getId(),user.getEmail(),user.getRole().toString()));
     }
@@ -73,5 +82,19 @@ public class AuthController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpServletRequest request) {
+        String token = JwtService.extractTokenFromRequest(request);
+        if (token == null) {
+            return ResponseEntity.badRequest().body("Missing or invalid Authorization header");
+        }
+
+        String jti = jwtService.getJtiFromToken(token);
+        Long userId = jwtService.getUserIdFromToken(token);
+        sessionService.invalidateSession(userId, jti);
+
+        return ResponseEntity.ok("Logged out successfully");
     }
 }

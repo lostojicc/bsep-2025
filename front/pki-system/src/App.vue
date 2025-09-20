@@ -1,38 +1,26 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import axios from "./services/axios";
+import { authState, performLocalLogout, setRouter } from "./services/authState";
+import { toast } from "vue3-toastify";
 
 const router = useRouter();
-const isAuthenticated = ref(false);
-const userRole = ref("");
-const userId = ref("");
 
-const checkAuth = () => {
-  const token = localStorage.getItem("authToken");
-  isAuthenticated.value = !!token;
-
-  if (isAuthenticated.value) {
-    userRole.value = localStorage.getItem("userRole") || "";
-    userId.value = localStorage.getItem("userId") || "";
-  } else {
-    userRole.value = "";
-    userId.value = "";
+const logout = async () => {
+  try {
+    await axios.post("/auth/logout");
+  } catch (error) {
+    console.error("Logout failed:", error.response?.data || error.message);
+  } finally {
+    performLocalLogout(router);
   }
 };
 
-onMounted(() => {
-  checkAuth();
-});
+onMounted(()=>{
+  setRouter(router)
+})
 
-const logout = () => {
-  localStorage.removeItem("authToken");
-  localStorage.removeItem("userRole");
-  localStorage.removeItem("userId");
-  isAuthenticated.value = false;
-  userRole.value = "";
-  userId.value = "";
-  router.push("/login");
-};
 </script>
 
 <template>
@@ -40,24 +28,35 @@ const logout = () => {
     <nav class="bg-indigo-600 text-white shadow">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex h-16 items-center justify-between">
-          <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-10">
             <RouterLink to="/" class="text-lg font-semibold hover:text-gray-200">
-              MyApp
+              PKI SYSTEM
             </RouterLink>
 
-            <!-- Show different links depending on auth state -->
-            <template v-if="isAuthenticated">
-              <span class="text-sm text-gray-200">
-                <b>{{ userRole }}</b> (ID: {{ userId }})
-              </span>
+            <template v-if="authState.isAuthenticated">
               <RouterLink
-                v-if="userRole === 'BASIC'"
+                v-if="authState.userRole === 'BASIC'"
                 to="/test"
                 class="hover:text-gray-200"
               >
                 Test
               </RouterLink>
-              <button @click="logout" class="hover:text-gray-200">
+
+              <RouterLink
+                to="/sessions"
+                class="hover:text-gray-200"
+              >
+                Active sessions
+              </RouterLink>
+            </template>
+          </div>
+
+          <div class="flex items-center space-x-10">
+            <template v-if="authState.isAuthenticated">
+              <span class="text-sm text-gray-200">
+                <b>{{ authState.userRole }}</b> (ID: {{ authState.userId }})
+              </span>
+              <button @click="logout" class="hover:text-gray-200 cursor-pointer">
                 Logout
               </button>
             </template>

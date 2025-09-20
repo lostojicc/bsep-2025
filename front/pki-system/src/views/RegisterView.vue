@@ -14,6 +14,16 @@ const organization = ref("");
 const password = ref("");
 const confirmPassword = ref("");
 
+// Errors
+const errors = ref({
+  name: "",
+  surname: "",
+  email: "",
+  organization: "",
+  password: "",
+  confirmPassword: ""
+});
+
 // Password visibility
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
@@ -38,12 +48,66 @@ const strengthLabel = computed(() => {
   }
 });
 
+
+// Validation function
+const validate = () => {
+  let valid = true;
+
+  // Reset errors
+  errors.value = {
+    name: "",
+    surname: "",
+    email: "",
+    organization: "",
+    password: "",
+    confirmPassword: ""
+  };
+
+  if (!name.value.trim()) {
+    errors.value.name = "First name is required.";
+    valid = false;
+  }
+
+  if (!surname.value.trim()) {
+    errors.value.surname = "Last name is required.";
+    valid = false;
+  }
+
+  if (!email.value.trim()) {
+    errors.value.email = "Email is required.";
+    valid = false;
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
+    errors.value.email = "Please enter a valid email address.";
+    valid = false;
+  }
+
+  if (!organization.value.trim()) {
+    errors.value.organization = "Organization is required.";
+    valid = false;
+  }
+
+  if (!password.value) {
+    errors.value.password = "Password is required.";
+    valid = false;
+  } else if (password.value.length < 8 || password.value.length > 64) {
+    errors.value.password = "Password must be between 8 and 64 characters.";
+    valid = false;
+  }
+
+  if (!confirmPassword.value) {
+    errors.value.confirmPassword = "Please confirm your password.";
+    valid = false;
+  } else if (password.value !== confirmPassword.value) {
+    errors.value.confirmPassword = "Passwords do not match.";
+    valid = false;
+  }
+
+  return valid;
+};
+
 // Submit registration
 const register = async () => {
-  if (password.value !== confirmPassword.value) {
-    alert("Passwords do not match!");
-    return;
-  }
+  if (!validate()) return;
 
   const payload = {
     name: name.value,
@@ -86,22 +150,25 @@ const closeDialog = () => {
         <!-- Name -->
         <div>
           <label for="name" class="block text-sm font-medium text-gray-900">First Name</label>
-          <input v-model="name" id="name" type="text" required
+          <input v-model="name" id="name" type="text"
             class="mt-2 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 sm:text-sm" />
+          <p v-if="errors.name" class="text-red-500 text-sm mt-1">{{ errors.name }}</p>
         </div>
 
         <!-- Surname -->
         <div>
           <label for="surname" class="block text-sm font-medium text-gray-900">Last Name</label>
-          <input v-model="surname" id="surname" type="text" required
+          <input v-model="surname" id="surname" type="text"
             class="mt-2 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 sm:text-sm" />
+          <p v-if="errors.surname" class="text-red-500 text-sm mt-1">{{ errors.surname }}</p>
         </div>
 
         <!-- Email -->
         <div>
           <label for="email" class="block text-sm font-medium text-gray-900">Email</label>
-          <input v-model="email" id="email" type="email" required
+          <input v-model="email" id="email" type="email"
             class="mt-2 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 sm:text-sm" />
+          <p v-if="errors.email" class="text-red-500 text-sm mt-1">{{ errors.email }}</p>
         </div>
 
         <!-- Organization -->
@@ -109,6 +176,7 @@ const closeDialog = () => {
           <label for="organization" class="block text-sm font-medium text-gray-900">Organization</label>
           <input v-model="organization" id="organization" type="text"
             class="mt-2 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 sm:text-sm" />
+          <p v-if="errors.organization" class="text-red-500 text-sm mt-1">{{ errors.organization }}</p>
         </div>
 
         <!-- Password -->
@@ -119,7 +187,6 @@ const closeDialog = () => {
               v-model="password"
               :type="showPassword ? 'text' : 'password'"
               id="password"
-              required
               autocomplete="new-password"
               class="block w-full rounded-md border border-gray-300 px-3 py-1.5 pr-10 text-gray-900 sm:text-sm"
             />
@@ -129,6 +196,7 @@ const closeDialog = () => {
               <span v-else>👁️</span>
             </button>
           </div>
+          <p v-if="errors.password" class="text-red-500 text-sm mt-1">{{ errors.password }}</p>
 
           <!-- Password Strength -->
           <div class="mt-2">
@@ -148,7 +216,6 @@ const closeDialog = () => {
               v-model="confirmPassword"
               :type="showConfirmPassword ? 'text' : 'password'"
               id="confirmPassword"
-              required
               autocomplete="new-password"
               class="block w-full rounded-md border border-gray-300 px-3 py-1.5 pr-10 text-gray-900 sm:text-sm"
             />
@@ -158,6 +225,7 @@ const closeDialog = () => {
               <span v-else>👁️</span>
             </button>
           </div>
+          <p v-if="errors.confirmPassword" class="text-red-500 text-sm mt-1">{{ errors.confirmPassword }}</p>
         </div>
 
         <!-- Submit -->

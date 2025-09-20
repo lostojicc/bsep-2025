@@ -1,19 +1,42 @@
 <script setup>
 import { ref } from "vue";
 import axios from "../services/axios";
-import { useRouter } from "vue-router";
-
-const router = useRouter();
+import { RecaptchaV2 } from "vue3-recaptcha-v2";
 
 const email = ref("");
 const password = ref("");
 const showPassword = ref(false);
 
+const captchaToken = ref(null);
+
+const handleWidgetId = (widgetId) => {
+};
+const handleErrorCallback = () => {
+  alert("Captcha failed to load. Please refresh the page.");
+};
+const handleExpiredCallback = () => {
+  alert("Captcha expired. Please solve it again.");
+  captchaToken.value = null;
+  if (window.grecaptcha && window.captchaWidgetId !== undefined) {
+    window.grecaptcha.reset(window.captchaWidgetId);
+  }
+};
+const handleLoadCallback = (response) => {
+  captchaToken.value = response
+};
+
+
 const login = async () => {
   try {
+    if (!captchaToken.value) {
+      alert("Please complete the captcha before logging in.");
+      return;
+    }
+
     const response = await axios.post("/auth/login", {
       email: email.value,
-      password: password.value
+      password: password.value,
+      recaptchaToken: captchaToken.value
     });
 
     const { token, userId, email: userEmail, userRole } = response.data;
@@ -61,6 +84,16 @@ const login = async () => {
               <span v-else>👁️</span>
             </button>
           </div>
+        </div>
+
+        <!-- reCAPTCHA -->
+        <div class="mt-4 flex justify-center">
+          <RecaptchaV2
+            @widget-id="handleWidgetId"
+            @error-callback="handleErrorCallback"
+            @expired-callback="handleExpiredCallback"
+            @load-callback="handleLoadCallback"
+          />
         </div>
 
         <!-- Submit -->

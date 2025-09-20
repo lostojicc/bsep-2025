@@ -14,6 +14,7 @@
     "tailwindcss": "^4.1.13",
     "vue": "^3.5.21",
     "vue-router": "^4.5.1",
+    "vue3-recaptcha-v2": "^2.1.0",
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {

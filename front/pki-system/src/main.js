@@ -2,5 +2,12 @@ import { createApp } from 'vue'
 import './style.css'
 import App from './App.vue'
 import router from './router'
+import { install } from "vue3-recaptcha-v2";
 
-createApp(App).use(router).mount('#app')
+const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+
+createApp(App)
+    .use(install, {
+        sitekey: siteKey})
+    .use(router)
+    .mount('#app')

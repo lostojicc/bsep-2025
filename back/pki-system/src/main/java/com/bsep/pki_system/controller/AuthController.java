@@ -6,12 +6,14 @@ import com.bsep.pki_system.dto.RegisterDTO;
 import com.bsep.pki_system.jwt.JwtService;
 import com.bsep.pki_system.model.User;
 import com.bsep.pki_system.model.UserRole;
+import com.bsep.pki_system.service.CaptchaService;
 import com.bsep.pki_system.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
@@ -19,10 +21,12 @@ public class AuthController {
 
     private final UserService userService;
     private final JwtService jwtService;
+    private final CaptchaService captchaService;
 
-    public AuthController(UserService userService, JwtService jwtService) {
+    public AuthController(UserService userService, JwtService jwtService, CaptchaService captchaService) {
         this.userService = userService;
         this.jwtService = jwtService;
+        this.captchaService = captchaService;
     }
 
     @PostMapping("/register")
@@ -43,6 +47,10 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginDTO request) {
+        if (!captchaService.verifyToken(request.getRecaptchaToken())) {
+            return ResponseEntity.badRequest().body("Captcha verification failed");
+        }
+
         User user = userService.login(request.getEmail(), request.getPassword());
         if (user == null) {
             return ResponseEntity.badRequest().body("Invalid credentials");

@@ -1,4 +1,17 @@
 <script setup>
+import { ref, onMounted } from "vue";
+
+const isAuthenticated = ref(false);
+
+const checkAuth = () => {
+  const token = localStorage.getItem("authToken");
+  isAuthenticated.value = !!token;
+};
+
+onMounted(() => {
+  checkAuth();
+});
+
 </script>
 
 <template>
@@ -11,7 +24,7 @@
         This is the home page of your Vue 3 + Tailwind app.  
         Use the navigation bar to sign in, register, or explore more pages.
       </p>
-      <div class="mt-8 flex gap-4 justify-center">
+      <div class="mt-8 flex gap-4 justify-center" v-if="!isAuthenticated">
         <RouterLink
           to="/login"
           class="rounded-md bg-indigo-600 px-4 py-2 text-white font-semibold shadow hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"

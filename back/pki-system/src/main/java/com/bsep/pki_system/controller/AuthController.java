@@ -1,6 +1,7 @@
 package com.bsep.pki_system.controller;
 
 import com.bsep.pki_system.dto.LoginDTO;
+import com.bsep.pki_system.dto.LoginResponseDTO;
 import com.bsep.pki_system.dto.RegisterDTO;
 import com.bsep.pki_system.jwt.JwtService;
 import com.bsep.pki_system.model.User;
@@ -52,7 +53,8 @@ public class AuthController {
         }
 
         String token = jwtService.generateToken(user);
-        return ResponseEntity.ok(token);
+
+        return ResponseEntity.ok(new LoginResponseDTO(token,user.getId(),user.getEmail(),user.getRole().toString()));
     }
 
     @GetMapping("/activate")

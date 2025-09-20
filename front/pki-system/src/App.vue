@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import axios from "./services/axios";
 
 const router = useRouter();
 const isAuthenticated = ref(false);
@@ -24,7 +25,18 @@ onMounted(() => {
   checkAuth();
 });
 
-const logout = () => {
+const logout = async () => {
+  try {
+    await axios.post("/auth/logout");
+    performLocalLogout();
+  } 
+  catch (error) {
+    console.error("Logout failed:", error.response?.data || error.message);
+    performLocalLogout();
+  }
+};
+
+const performLocalLogout = () => {
   localStorage.removeItem("authToken");
   localStorage.removeItem("userRole");
   localStorage.removeItem("userId");
@@ -33,6 +45,7 @@ const logout = () => {
   userId.value = "";
   router.push("/login");
 };
+
 </script>
 
 <template>

@@ -31,10 +31,12 @@ import java.util.Base64;
 public class CertificateService {
     private final CertificateRepository certificateRepository;
     private final UserRepository userRepository;
+    private final CryptoService cryptoService;
 
-    public CertificateService(CertificateRepository certificateRepository, UserRepository userRepository) {
+    public CertificateService(CertificateRepository certificateRepository, UserRepository userRepository, CryptoService cryptoService) {
         this.certificateRepository = certificateRepository;
         this.userRepository = userRepository;
+        this.cryptoService = cryptoService;
     }
 
     public X509Certificate loadCertificateFromKeystore(String alias) {
@@ -61,7 +63,8 @@ public class CertificateService {
                 throw new CertificateGenerationException("User is not allowed to generate certificates", null);
             }
 
-            KeyPair keyPair = generateRSAKeyPair();
+            KeyPair keyPair = cryptoService.generateRSAKeyPair();
+
             X509Certificate cert = buildRootCertificate(keyPair);
 
             String alias = "rootCA";
@@ -76,13 +79,6 @@ public class CertificateService {
         }
     }
 
-    private KeyPair generateRSAKeyPair() throws NoSuchAlgorithmException, NoSuchProviderException {
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
-        keyGen.initialize(4096); // strong root key
-
-        return keyGen.generateKeyPair();
-    }
-
     private X509Certificate buildRootCertificate(KeyPair keyPair) throws CertIOException, CertificateException, OperatorCreationException {
         X500Name issuer = new X500Name("CN=MyRootCA,O=MyOrg");
         BigInteger serial = BigInteger.valueOf(System.currentTimeMillis());
@@ -95,18 +91,18 @@ public class CertificateService {
                 serial,
                 java.util.Date.from(now.toInstant()),
                 java.util.Date.from(expiry.toInstant()),
-                issuer, // self-signed, so subject = issuer
+                issuer, // samo potpisani
                 keyPair.getPublic()
         );
 
-        // Add BasicConstraints: CA = true
+        // CA = true
         certBuilder.addExtension(
                 org.bouncycastle.asn1.x509.Extension.basicConstraints,
                 true,
                 new org.bouncycastle.asn1.x509.BasicConstraints(true)
         );
 
-        // Sign certificate
+        // Potpis privatnim klj
         ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA").build(keyPair.getPrivate());
         X509Certificate cert = new JcaX509CertificateConverter().setProvider("BC")
                 .getCertificate(certBuilder.build(signer));
@@ -118,10 +114,9 @@ public class CertificateService {
         KeyStore ks = KeyStore.getInstance("PKCS12");
         ks.load(null, null); // new keystore
 
-        // Store PrivateKeyEntry with certificate chain (just the root here)
         ks.setKeyEntry(alias, aPrivate, password, new X509Certificate[]{cert});
 
-        // Save to file
+        // mozda proemniti putanju?
         try (FileOutputStream fos = new FileOutputStream("keystore.p12")) {
             ks.store(fos, password);
         }

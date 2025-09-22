@@ -40,4 +40,11 @@ public class User {
 
     @OneToMany(mappedBy = "owner", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<Certificate> certificates = new ArrayList<>();
+
+    // samo admini i ca imaju pristup keystoru
+    @Column(nullable = true)
+    private String keystorePassword;
+
+    @Column(nullable = true)
+    private String aesKey;
 }

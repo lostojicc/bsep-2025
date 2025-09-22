@@ -35,9 +35,9 @@ public class CertificateController {
 
     @GetMapping("/root/download")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<byte[]> downloadRootCertificate(@RequestParam String alias) {
+    public ResponseEntity<byte[]> downloadRootCertificate(@RequestParam long adminId,@RequestParam String alias) {
         try {
-            X509Certificate cert = certificateService.loadCertificateFromKeystore(alias);
+            X509Certificate cert = certificateService.loadCertificateFromKeystore(adminId,alias);
 
             // Encode certificate in DER format (binary)
             byte[] certBytes = cert.getEncoded();

@@ -15,8 +15,8 @@ import java.util.Base64;
 public class CryptoService {
 
     private static final String AES_TRANSFORMATION = "AES/CBC/PKCS5Padding";
-    private static final int AES_KEY_SIZE = 256; // best practice
-    private static final int IV_SIZE = 16;       // 128-bit IV
+    private static final int AES_KEY_SIZE = 256;
+    private static final int IV_SIZE = 16;
 
     /**
      * Generate a random AES key

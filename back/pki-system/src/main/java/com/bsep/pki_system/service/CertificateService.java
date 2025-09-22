@@ -15,6 +15,7 @@ import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.SecretKey;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -39,13 +40,24 @@ public class CertificateService {
         this.cryptoService = cryptoService;
     }
 
-    public X509Certificate loadCertificateFromKeystore(String alias) {
+    public X509Certificate loadCertificateFromKeystore(long adminId,String alias) {
         try {
+            User adminUser = userRepository.findById(adminId)
+                    .orElseThrow(() -> new CertificateGenerationException("Admin user not found", null));
+
+            if(!adminUser.getRole().equals(UserRole.ADMIN)){
+                throw new CertificateGenerationException("User is not allowed to generate certificates", null);
+            }
+
             KeyStore ks = KeyStore.getInstance("PKCS12");
             // OVE SIFRE SE MORAJU PROMENITI I ENCRYPTOVATI
-            char[] password = "password".toCharArray();
+            //char[] encryptedPassword = "password".toCharArray();
+
+            SecretKey restoredKey = cryptoService.decodeAESKey(adminUser.getAesKey());
+            String decryptedPassword = cryptoService.decryptAES(adminUser.getKeystorePassword(), restoredKey);
+
             try (FileInputStream fis = new FileInputStream("keystore.p12")) {
-                ks.load(fis, password);
+                ks.load(fis, decryptedPassword.toCharArray());
             }
 
             return (X509Certificate) ks.getCertificate(alias);
@@ -68,10 +80,21 @@ public class CertificateService {
             X509Certificate cert = buildRootCertificate(keyPair);
 
             String alias = "rootCA";
-            // OVE SIFRE SE MORAJU PROMENITI I ENCRYPTOVATI
-            char[] password = "password".toCharArray();
 
-            storeInKeystore(cert, keyPair.getPrivate(), alias, password);
+            // OVE SIFRE SE MORAJU PROMENITI I ENCRYPTOVATI
+            //char[] encryptedPassword = "password".toCharArray();
+
+            // generisanje random encryptovane sifre
+            String plainPassword = "randomPassword123";
+            SecretKey aesKey = cryptoService.generateAESKey();
+            String aesKeyBase64 = cryptoService.encodeKey(aesKey);
+            String encryptedPassword = cryptoService.encryptAES(plainPassword, aesKey);
+
+            adminUser.setKeystorePassword(encryptedPassword);
+            adminUser.setAesKey(aesKeyBase64);
+
+            storeInKeystore(cert, keyPair.getPrivate(), alias, plainPassword.toCharArray());
+            
             return saveMetadata(cert, adminUser, alias);
 
         } catch (Exception e) {

@@ -100,4 +100,9 @@ public class JwtService {
         }
         return authHeader.substring(7);
     }
+
+    public String getEmailFromToken(String token) {
+        Claims claims = getClaims(token);
+        return claims.getSubject();
+    }
 }

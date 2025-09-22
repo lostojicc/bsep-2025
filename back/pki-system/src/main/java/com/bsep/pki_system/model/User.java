@@ -1,12 +1,13 @@
 package com.bsep.pki_system.model;
 
-
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -29,11 +30,14 @@ public class User {
 
     private String organization;
 
-    private boolean activated = false;
-
     @Enumerated(EnumType.STRING)
     private UserRole role;
 
+    // za confirm maila
+    private boolean activated = false;
     private String activationToken;
     private LocalDateTime activationTokenExpiry;
+
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<Certificate> certificates = new ArrayList<>();
 }

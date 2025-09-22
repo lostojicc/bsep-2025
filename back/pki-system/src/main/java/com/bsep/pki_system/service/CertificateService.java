@@ -16,6 +16,7 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -50,13 +51,11 @@ public class CertificateService {
             }
 
             KeyStore ks = KeyStore.getInstance("PKCS12");
-            // OVE SIFRE SE MORAJU PROMENITI I ENCRYPTOVATI
-            //char[] encryptedPassword = "password".toCharArray();
 
             SecretKey restoredKey = cryptoService.decodeAESKey(adminUser.getAesKey());
             String decryptedPassword = cryptoService.decryptAES(adminUser.getKeystorePassword(), restoredKey);
 
-            try (FileInputStream fis = new FileInputStream("keystore.p12")) {
+            try (FileInputStream fis = new FileInputStream("certificates/" + alias + ".p12")) {
                 ks.load(fis, decryptedPassword.toCharArray());
             }
 
@@ -75,14 +74,15 @@ public class CertificateService {
                 throw new CertificateGenerationException("User is not allowed to generate certificates", null);
             }
 
+            String alias = "rootCA";
+
+            if (rootKeystoreExists(alias)) {
+                throw new CertificateGenerationException("Root CA keystore already exists", null);
+            }
+
             KeyPair keyPair = cryptoService.generateRSAKeyPair();
 
             X509Certificate cert = buildRootCertificate(keyPair);
-
-            String alias = "rootCA";
-
-            // OVE SIFRE SE MORAJU PROMENITI I ENCRYPTOVATI
-            //char[] encryptedPassword = "password".toCharArray();
 
             // generisanje random encryptovane sifre
             String plainPassword = "randomPassword123";
@@ -93,9 +93,9 @@ public class CertificateService {
             adminUser.setKeystorePassword(encryptedPassword);
             adminUser.setAesKey(aesKeyBase64);
 
-            storeInKeystore(cert, keyPair.getPrivate(), alias, plainPassword.toCharArray());
-            
-            return saveMetadata(cert, adminUser, alias);
+            storeRootKeystore(cert, keyPair.getPrivate(), alias, plainPassword.toCharArray());
+
+            return saveCertToDb(cert, adminUser, alias);
 
         } catch (Exception e) {
             throw new CertificateGenerationException("Failed to generate root certificate", e);
@@ -133,19 +133,37 @@ public class CertificateService {
         return cert;
     }
 
-    private void storeInKeystore(X509Certificate cert, PrivateKey aPrivate, String alias, char[] password) throws KeyStoreException, CertificateException, IOException, NoSuchAlgorithmException {
-        KeyStore ks = KeyStore.getInstance("PKCS12");
-        ks.load(null, null); // new keystore
-
-        ks.setKeyEntry(alias, aPrivate, password, new X509Certificate[]{cert});
-
-        // mozda proemniti putanju?
-        try (FileOutputStream fos = new FileOutputStream("keystore.p12")) {
-            ks.store(fos, password);
+    private boolean rootKeystoreExists(String alias) {
+        File certDir = new File("certificates");
+        if (!certDir.exists()) {
+            return false;
         }
+
+        File keystoreFile = new File(certDir, alias + ".p12");
+        return keystoreFile.exists();
     }
 
-    private Certificate saveMetadata(X509Certificate cert, User adminUser, String alias) {
+    private void storeRootKeystore(X509Certificate cert, PrivateKey privateKey, String alias, char[] password)
+            throws KeyStoreException, CertificateException, IOException, NoSuchAlgorithmException {
+
+        File certDir = new File("certificates");
+        File keystoreFile = new File(certDir, alias + ".p12");
+
+        // New PKCS12 keystore
+        KeyStore ks = KeyStore.getInstance("PKCS12");
+        ks.load(null, null);
+
+        // Store private key + certificate
+        ks.setKeyEntry(alias, privateKey, password, new X509Certificate[]{cert});
+
+        try (FileOutputStream fos = new FileOutputStream(keystoreFile)) {
+            ks.store(fos, password);
+        }
+
+        System.out.println("Root CA keystore successfully created at: " + keystoreFile.getAbsolutePath());
+    }
+
+    private Certificate saveCertToDb(X509Certificate cert, User adminUser, String alias) {
         Certificate rootCert = new Certificate();
         rootCert.setAlias(alias);
         rootCert.setSerialNumber(cert.getSerialNumber().toString());

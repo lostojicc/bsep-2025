@@ -58,4 +58,10 @@ public class Certificate {
     // Za povlacenje cert
     private LocalDateTime revocationDate;
     private String revocationReason;
+
+    // da znamo uvek u kom keystoru stoji
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "keystore_id",
+            foreignKey = @ForeignKey(name = "fk_certificate_keystore"))
+    private Keystore keystore;
 }

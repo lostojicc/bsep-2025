@@ -45,3 +45,5 @@ build/
 
 # Email credentials
 src/main/resources/email.properties
+
+certificates/

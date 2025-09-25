@@ -10,6 +10,7 @@ import javax.crypto.spec.IvParameterSpec;
 import java.security.*;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.Base64;
+import java.util.UUID;
 
 @Service
 public class CryptoService {
@@ -74,7 +75,7 @@ public class CryptoService {
      */
     public KeyPair generateRSAKeyPair() throws NoSuchAlgorithmException, NoSuchProviderException {
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
-        keyGen.initialize(4096);
+        keyGen.initialize(1024);
         return keyGen.generateKeyPair();
     }
 
@@ -91,5 +92,9 @@ public class CryptoService {
     public SecretKey decodeAESKey(String base64Key) {
         byte[] decoded = Base64.getDecoder().decode(base64Key);
         return new javax.crypto.spec.SecretKeySpec(decoded, 0, decoded.length, "AES");
+    }
+
+    public String generateRandomPassword() {
+        return UUID.randomUUID().toString().replace("-", "");
     }
 }

@@ -4,7 +4,9 @@ import com.bsep.pki_system.exceptions.CertificateGenerationException;
 import com.bsep.pki_system.model.*;
 import com.bsep.pki_system.model.Certificate;
 import com.bsep.pki_system.repository.CertificateRepository;
+import com.bsep.pki_system.repository.KeystoreRepository;
 import com.bsep.pki_system.repository.UserRepository;
+import jakarta.annotation.PostConstruct;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.cert.CertIOException;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
@@ -13,6 +15,7 @@ import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -34,28 +37,38 @@ public class CertificateService {
     private final CertificateRepository certificateRepository;
     private final UserRepository userRepository;
     private final CryptoService cryptoService;
+    private final KeystoreRepository  keystoreRepository;
 
-    public CertificateService(CertificateRepository certificateRepository, UserRepository userRepository, CryptoService cryptoService) {
+    @Value("${aes.master.key}")
+    private String masterKeyBase64;
+
+    private SecretKey masterKey;
+
+    public CertificateService(CertificateRepository certificateRepository, UserRepository userRepository, CryptoService cryptoService,  KeystoreRepository keystoreRepository) {
         this.certificateRepository = certificateRepository;
         this.userRepository = userRepository;
         this.cryptoService = cryptoService;
+        this.keystoreRepository = keystoreRepository;
     }
 
-    public X509Certificate loadCertificateFromKeystore(long adminId,String alias) {
-        try {
-            User adminUser = userRepository.findById(adminId)
-                    .orElseThrow(() -> new CertificateGenerationException("Admin user not found", null));
+    @PostConstruct
+    public void init() {
+        this.masterKey = cryptoService.decodeAESKey(masterKeyBase64);
+    }
 
-            if(!adminUser.getRole().equals(UserRole.ADMIN)){
-                throw new CertificateGenerationException("User is not allowed to generate certificates", null);
-            }
+    public X509Certificate loadCertificateFromKeystore(String alias) {
+        try {
+            Certificate certificate = certificateRepository.findCertificateByAlias(alias)
+                    .orElseThrow(() -> new CertificateGenerationException("Certificate not found", null));
+
+            Keystore keystore = keystoreRepository.findById(certificate.getKeystore().getId())
+                    .orElseThrow(() -> new CertificateGenerationException("Keystore not found", null));
 
             KeyStore ks = KeyStore.getInstance("PKCS12");
 
-            SecretKey restoredKey = cryptoService.decodeAESKey(adminUser.getAesKey());
-            String decryptedPassword = cryptoService.decryptAES(adminUser.getKeystorePassword(), restoredKey);
+            String decryptedPassword = cryptoService.decryptAES(keystore.getEncryptedPassword(), masterKey);
 
-            try (FileInputStream fis = new FileInputStream("certificates/" + alias + ".p12")) {
+            try (FileInputStream fis = new FileInputStream("certificates/keystore_" + keystore.getId() + ".p12")) {
                 ks.load(fis, decryptedPassword.toCharArray());
             }
 
@@ -74,28 +87,23 @@ public class CertificateService {
                 throw new CertificateGenerationException("User is not allowed to generate certificates", null);
             }
 
-            String alias = "rootCA";
-
-            if (rootKeystoreExists(alias)) {
-                throw new CertificateGenerationException("Root CA keystore already exists", null);
-            }
-
             KeyPair keyPair = cryptoService.generateRSAKeyPair();
 
             X509Certificate cert = buildRootCertificate(keyPair);
 
             // generisanje random encryptovane sifre
-            String plainPassword = "randomPassword123";
-            SecretKey aesKey = cryptoService.generateAESKey();
-            String aesKeyBase64 = cryptoService.encodeKey(aesKey);
-            String encryptedPassword = cryptoService.encryptAES(plainPassword, aesKey);
+            String plainPassword = cryptoService.generateRandomPassword();
+            String encryptedPassword = cryptoService.encryptAES(plainPassword, masterKey);
 
-            adminUser.setKeystorePassword(encryptedPassword);
-            adminUser.setAesKey(aesKeyBase64);
+            Keystore keystore = new Keystore();
+            keystore.setEncryptedPassword(encryptedPassword);
+            keystore = keystoreRepository.save(keystore);
 
-            storeRootKeystore(cert, keyPair.getPrivate(), alias, plainPassword.toCharArray());
+            Certificate certificate = saveCertToDb(cert, adminUser, keystore);
 
-            return saveCertToDb(cert, adminUser, alias);
+            storeRootKeystore(cert, keyPair.getPrivate(), certificate.getAlias(), plainPassword.toCharArray(), keystore);
+
+            return certificate;
 
         } catch (Exception e) {
             throw new CertificateGenerationException("Failed to generate root certificate", e);
@@ -125,6 +133,15 @@ public class CertificateService {
                 new org.bouncycastle.asn1.x509.BasicConstraints(true)
         );
 
+        certBuilder.addExtension(
+                org.bouncycastle.asn1.x509.Extension.keyUsage,
+                true,
+                new org.bouncycastle.asn1.x509.KeyUsage(
+                        org.bouncycastle.asn1.x509.KeyUsage.keyCertSign
+                                | org.bouncycastle.asn1.x509.KeyUsage.cRLSign
+                )
+        );
+
         // Potpis privatnim klj
         ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA").build(keyPair.getPrivate());
         X509Certificate cert = new JcaX509CertificateConverter().setProvider("BC")
@@ -133,27 +150,23 @@ public class CertificateService {
         return cert;
     }
 
-    private boolean rootKeystoreExists(String alias) {
-        File certDir = new File("certificates");
-        if (!certDir.exists()) {
-            return false;
-        }
-
-        File keystoreFile = new File(certDir, alias + ".p12");
-        return keystoreFile.exists();
-    }
-
-    private void storeRootKeystore(X509Certificate cert, PrivateKey privateKey, String alias, char[] password)
+    private void storeRootKeystore(X509Certificate cert,
+                                   PrivateKey privateKey,
+                                   String alias,
+                                   char[] password,
+                                   Keystore keystore)
             throws KeyStoreException, CertificateException, IOException, NoSuchAlgorithmException {
 
         File certDir = new File("certificates");
-        File keystoreFile = new File(certDir, alias + ".p12");
+        if (!certDir.exists()) {
+            certDir.mkdirs();
+        }
 
-        // New PKCS12 keystore
+        File keystoreFile = new File(certDir, "keystore_" + keystore.getId() + ".p12");
+
         KeyStore ks = KeyStore.getInstance("PKCS12");
         ks.load(null, null);
 
-        // Store private key + certificate
         ks.setKeyEntry(alias, privateKey, password, new X509Certificate[]{cert});
 
         try (FileOutputStream fos = new FileOutputStream(keystoreFile)) {
@@ -163,10 +176,10 @@ public class CertificateService {
         System.out.println("Root CA keystore successfully created at: " + keystoreFile.getAbsolutePath());
     }
 
-    private Certificate saveCertToDb(X509Certificate cert, User adminUser, String alias) {
+    private Certificate saveCertToDb(X509Certificate cert, User adminUser, Keystore keystore) {
         Certificate rootCert = new Certificate();
-        rootCert.setAlias(alias);
         rootCert.setSerialNumber(cert.getSerialNumber().toString());
+        rootCert.setAlias(cert.getSerialNumber().toString());
         rootCert.setIssuer(cert.getIssuerX500Principal().getName());
         rootCert.setSubject(cert.getSubjectX500Principal().getName());
         rootCert.setValidFrom(cert.getNotBefore().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
@@ -174,6 +187,7 @@ public class CertificateService {
         rootCert.setStatus(CertificateStatus.ACTIVE);
         rootCert.setType(CertificateType.ROOT);
         rootCert.setOwner(adminUser);
+        rootCert.setKeystore(keystore);
 
         certificateRepository.save(rootCert);
 

@@ -37,6 +37,7 @@ public class UserService {
         user.setOrganization(request.getOrganization());
         user.setRole(UserRole.BASIC);
         user.setActivated(false);
+        user.setCaPasswordChanged(true);
 
         String token = UUID.randomUUID().toString();
         user.setActivationToken(token);
@@ -74,5 +75,50 @@ public class UserService {
         userRepository.save(user);
 
         return "User has been activated successfully";
+    }
+
+    public User registerCA(RegisterDTO request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException("Email is already registered");
+        }
+
+        User user = new User();
+        user.setName(request.getName());
+        user.setSurname(request.getSurname());
+        user.setEmail(request.getEmail());
+        user.setOrganization(request.getOrganization());
+        user.setRole(UserRole.CA);
+
+        user.setActivated(true);
+        user.setActivationToken(null);
+        user.setActivationTokenExpiry(null);
+
+        user.setCaPasswordChanged(false);
+
+        String tempPassword = UUID.randomUUID().toString().substring(0, 12);
+        user.setPassword(passwordEncoder.encode(tempPassword));
+
+        emailSender.sendTemporaryPasswordEmail(user.getEmail(), tempPassword);
+
+        return userRepository.save(user);
+    }
+
+    public void changeCAPassword(Long userId, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!user.getRole().equals(UserRole.CA)) {
+            throw new IllegalArgumentException("Only CA users can change CA password");
+        }
+
+        if (user.isCaPasswordChanged()) {
+            throw new IllegalStateException("CA password has already been changed");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+
+        user.setCaPasswordChanged(true);
+
+        userRepository.save(user);
     }
 }

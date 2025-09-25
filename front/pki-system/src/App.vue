@@ -48,6 +48,14 @@ onMounted(()=>{
               >
                 Active sessions
               </RouterLink>
+
+              <RouterLink
+                v-if="authState.userRole === 'ADMIN'"
+                to="/register-ca"
+                class="hover:text-gray-200"
+              >
+                Add new CA
+              </RouterLink>
             </template>
           </div>
 

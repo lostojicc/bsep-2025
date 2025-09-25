@@ -40,4 +40,6 @@ public class User {
 
     @OneToMany(mappedBy = "owner", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<Certificate> certificates = new ArrayList<>();
+
+    private boolean caPasswordChanged = true;
 }

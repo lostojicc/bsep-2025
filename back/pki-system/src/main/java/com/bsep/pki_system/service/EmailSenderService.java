@@ -44,4 +44,21 @@ public class EmailSenderService {
             throw new RuntimeException("Failed to send email to " + to, e);
         }
     }
+
+    public void sendTemporaryPasswordEmail(String to, String tempPassword) {
+        MimeMessage message = mailSender.createMimeMessage();
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+            helper.setTo(to);
+            helper.setSubject("Your temporary PKI password");
+            String htmlMsg = "<p>Welcome to the PKI System!</p>"
+                    + "<p>Your temporary password is: <b>" + tempPassword + "</b></p>"
+                    + "<p>Please log in and change it immediately.</p>";
+            helper.setText(htmlMsg, true);
+            mailSender.send(message);
+        } catch (MessagingException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Failed to send email", e);
+        }
+    }
 }

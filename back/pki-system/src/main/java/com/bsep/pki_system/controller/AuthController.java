@@ -1,5 +1,6 @@
 package com.bsep.pki_system.controller;
 
+import com.bsep.pki_system.dto.ChangePasswordDTO;
 import com.bsep.pki_system.dto.LoginDTO;
 import com.bsep.pki_system.dto.LoginResponseDTO;
 import com.bsep.pki_system.dto.RegisterDTO;
@@ -13,6 +14,7 @@ import com.bsep.pki_system.service.UserSessionService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -71,7 +73,7 @@ public class AuthController {
 
         String token = jwtService.generateToken(user, ip , userAgent);
 
-        return ResponseEntity.ok(new LoginResponseDTO(token,user.getId(),user.getEmail(),user.getRole().toString()));
+        return ResponseEntity.ok(new LoginResponseDTO(token,user.getId(),user.getEmail(),user.getRole().toString(), user.isCaPasswordChanged()));
     }
 
     @GetMapping("/activate")
@@ -96,5 +98,42 @@ public class AuthController {
         sessionService.invalidateSession(userId, jti);
 
         return ResponseEntity.ok("Logged out successfully");
+    }
+
+    @PostMapping("/registerCA")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> registerCA(@RequestBody RegisterDTO request) {
+        try {
+            User savedUser = userService.registerCA(request);
+            return ResponseEntity.ok("CA registered with ID: " + savedUser.getId());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An error occurred while registering ca user");
+        }
+    }
+
+
+    @PostMapping("/change-password")
+    @PreAuthorize("hasRole('CA')")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordDTO dto, HttpServletRequest request) {
+        try {
+            String token = JwtService.extractTokenFromRequest(request);
+            if (token == null) {
+                return ResponseEntity.badRequest().body("Missing or invalid Authorization header");
+            }
+            Long userId = jwtService.getUserIdFromToken(token);
+            userService.changeCAPassword(userId, dto.getNewPassword());
+            return ResponseEntity.ok("Password changed successfully");
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An error occurred while changing the password");
+        }
     }
 }

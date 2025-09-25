@@ -2,10 +2,12 @@
 import { ref } from "vue";
 import axios from "../services/axios";
 import { RecaptchaV2 } from "vue3-recaptcha-v2";
+import { useRouter } from "vue-router";
 
 const email = ref("");
 const password = ref("");
 const showPassword = ref(false);
+const router = useRouter();
 
 const captchaToken = ref(null);
 
@@ -39,15 +41,20 @@ const login = async () => {
       recaptchaToken: captchaToken.value
     });
 
-    const { token, userId, email: userEmail, userRole } = response.data;
+    const { token, userId, email: userEmail, userRole, caChangedPassword } = response.data;
 
     localStorage.setItem("authToken", token);
     localStorage.setItem("userId", userId);
     localStorage.setItem("userEmail", userEmail);
     localStorage.setItem("userRole", userRole);
+    localStorage.setItem("caChangedPassword", caChangedPassword);
 
-    // refresh and redirect to home
-    window.location.href = "/";
+    if (userRole === "CA" && !caChangedPassword) {
+      router.push({ name: "change-password", params: { userId } });
+    } else {
+      window.location.href = "/";
+    }
+    
   } catch (error) {
     console.error("Login failed:", error.response?.data || error.message);
     alert(`Login failed: ${error.response?.data?.message || error.message}`);

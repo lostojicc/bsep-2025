@@ -15,6 +15,8 @@ export const performLocalLogout = () => {
   localStorage.removeItem("authToken");
   localStorage.removeItem("userRole");
   localStorage.removeItem("userId");
+  localStorage.removeItem("userEmail");
+  localStorage.removeItem("caChangedPassword");
 
   authState.isAuthenticated = false;
   authState.userRole = "";

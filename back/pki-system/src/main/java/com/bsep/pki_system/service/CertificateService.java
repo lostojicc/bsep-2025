@@ -1,5 +1,6 @@
 package com.bsep.pki_system.service;
 
+import com.bsep.pki_system.dto.CertificateDTO;
 import com.bsep.pki_system.exceptions.CertificateGenerationException;
 import com.bsep.pki_system.model.*;
 import com.bsep.pki_system.model.Certificate;
@@ -30,7 +31,9 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 
 @Service
 public class CertificateService {
@@ -55,6 +58,53 @@ public class CertificateService {
     public void init() {
         this.masterKey = cryptoService.decodeAESKey(masterKeyBase64);
     }
+
+    public List<CertificateDTO> getAllOwnedCertificates(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CertificateGenerationException("User not found", null));
+
+        List<CertificateDTO> certificateDTOList = new ArrayList<>();
+
+        List<Certificate> certificates = certificateRepository.findAllByOwnerOrderById(user);
+
+        for(Certificate c : certificates) {
+            certificateDTOList.add(new CertificateDTO(c, true));
+        }
+
+        return certificateDTOList;
+    }
+
+    public List<CertificateDTO> getAllCertificatesByKeystore(Long keystoreId) {
+        Keystore keystore = keystoreRepository.findById(keystoreId)
+                .orElseThrow(() -> new IllegalArgumentException("Keystore not found", null));
+
+        List<CertificateDTO> certificateDTOList = new ArrayList<>();
+
+        List<Certificate> certificates = certificateRepository.findAllByKeystoreOrderByType(keystore);
+
+        for(Certificate c : certificates) {
+            // da li admin sme da revokuje sve sertifikate ?
+            certificateDTOList.add(new CertificateDTO(c, false));
+        }
+
+        return certificateDTOList;
+    }
+
+    public List<CertificateDTO> getAllSignedCertByOwnerId(Long userId){
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found", null));
+
+        if(user.getRole() == UserRole.BASIC) {
+            throw new IllegalArgumentException("Basic users cannot view signed certificates", null);
+        }
+        List<CertificateDTO> certificateDTOS = certificateRepository.findAllByOwnerAndSigned(userId)
+                .stream()
+                .map(cert -> new CertificateDTO(cert, userId.equals(cert.getOwner().getId())))
+                .toList();
+
+        return certificateDTOS;
+    }
+
 
     public X509Certificate loadCertificateFromKeystore(String alias) {
         try {

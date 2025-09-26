@@ -47,9 +47,7 @@ public class Certificate {
     private LocalDateTime validFrom;
     private LocalDateTime validTo;
 
-    // Status (ACTIVE, REVOKED, EXPIRED)
-    @Enumerated(EnumType.STRING)
-    private CertificateStatus status = CertificateStatus.ACTIVE;
+    private boolean revoked = false;
 
     // Type (ROOT, INTERMEDIATE, END_ENTITY)
     @Enumerated(EnumType.STRING)

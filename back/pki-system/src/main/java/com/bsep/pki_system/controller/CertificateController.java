@@ -1,8 +1,11 @@
 package com.bsep.pki_system.controller;
 
+import com.bsep.pki_system.dto.CertificateIssueDTO;
 import com.bsep.pki_system.exceptions.CertificateGenerationException;
+import com.bsep.pki_system.jwt.JwtService;
 import com.bsep.pki_system.model.Certificate;
 import com.bsep.pki_system.service.CertificateService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -10,15 +13,18 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 
 @RestController
 @RequestMapping("/certificate")
 public class CertificateController {
 
     private final CertificateService certificateService;
+    private final JwtService jwtService;
 
-    public CertificateController(CertificateService certificateService) {
+    public CertificateController(CertificateService certificateService, JwtService jwtService) {
         this.certificateService = certificateService;
+        this.jwtService = jwtService;
     }
 
     @PostMapping("/root")
@@ -49,6 +55,19 @@ public class CertificateController {
         } catch (CertificateGenerationException | CertificateEncodingException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(null);
+        }
+    }
+
+    @PostMapping("/issue-ca")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CA')")
+    public ResponseEntity<String> issueCACertificate(@RequestBody CertificateIssueDTO issue, HttpServletRequest request) {
+        try {
+            String token = JwtService.extractTokenFromRequest(request);
+            certificateService.issueCACertificate(issue, jwtService.getUserIdFromToken(token));
+            return ResponseEntity.ok("Certificate issued");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: " + e.getMessage());
         }
     }
 }

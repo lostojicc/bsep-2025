@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="ecec0c5f-badf-41da-85a2-cab93aab062b" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pki-system/certificates/rootCA.p12" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/config/WebConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/config/WebConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/controller/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/controller/AuthController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/controller/CertificateController.java" beforeDir="false" afterPath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/controller/CertificateController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/model/Certificate.java" beforeDir="false" afterPath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/model/Certificate.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/model/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/model/User.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/repository/CertificateRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/repository/CertificateRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/service/CertificateService.java" beforeDir="false" afterPath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/service/CertificateService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/service/UserService.java" beforeDir="false" afterPath="$PROJECT_DIR$/pki-system/src/main/java/com/bsep/pki_system/service/UserService.java" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Class" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 3
+}</component>
+  <component name="ProjectId" id="3378dtm4mPcwYhA3awyCTKoBGFR" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
+    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
+    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
+    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;Spring Boot.PkiSystemApplication.executor&quot;: &quot;Run&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;dev&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/dev/bsep-2025/back/pki-system/src/main/resources&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  },
+  &quot;keyToStringList&quot;: {
+    &quot;DatabaseDriversLRU&quot;: [
+      &quot;postgresql&quot;
+    ]
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\dev\bsep-2025\back\pki-system\src\main\resources" />
+    </key>
+  </component>
+  <component name="RunManager">
+    <configuration name="PkiSystemApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="pki-system" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="com.bsep.pki_system.PkiSystemApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-9823dce3aa75-28b599e66164-intellij.indexing.shared.core-IU-242.23726.103" />
+        <option value="bundled-js-predefined-d6986cc7102b-5c90d61e3bab-JavaScript-IU-242.23726.103" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="ecec0c5f-badf-41da-85a2-cab93aab062b" name="Changes" comment="" />
+      <created>1758656842108</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1758656842108</updated>
+      <workItem from="1758656843734" duration="4042000" />
+      <workItem from="1758714009116" duration="5673000" />
+      <workItem from="1758722536311" duration="5000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>

@@ -56,6 +56,13 @@ onMounted(()=>{
               >
                 Add new CA
               </RouterLink>
+
+              <RouterLink
+                to="/certificates"
+                class="hover:text-gray-200"
+              >
+                Certificates
+              </RouterLink>
             </template>
           </div>
 

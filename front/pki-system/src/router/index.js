@@ -6,6 +6,7 @@ import TestView from "../views/TestView.vue";
 import SessionsView from "../views/SessionsView.vue";
 import ChangePasswordView from "../views/ChangePasswordView.vue";
 import RegisterCaView from "../views/RegisterCaView.vue";
+import CertificatesView from "../views/CertificatesView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -16,7 +17,8 @@ const router = createRouter({
     { path: "/test", name: "test", component: TestView, meta: { requiresAuth: true, allowedRoles: ["BASIC"] }},
     { path: "/sessions", name: "sessions", component: SessionsView, meta: { requiresAuth: true }},
     { path: "/change-password/:userId", name: "change-password", component: ChangePasswordView, meta: { requiresAuth: true, allowedRoles: ["CA"] } },
-    { path: "/register-ca", name: "register-ca", component: RegisterCaView, meta: { requiresAuth: true, allowedRoles: ["ADMIN"] } }
+    { path: "/register-ca", name: "register-ca", component: RegisterCaView, meta: { requiresAuth: true, allowedRoles: ["ADMIN"] } },
+    { path: "/certificates", name: "certificates", component: CertificatesView, meta: { requiresAuth: true } }
   ]
 });
 

@@ -32,6 +32,7 @@ public interface CertificateRepository extends JpaRepository<Certificate, Long> 
                 ON child.issuer_serial_number = parent.serial_number
         )
         SELECT * FROM cert_tree
+        ORDER BY keystore_id, type, id
         """, nativeQuery = true)
     List<Certificate> findAllByOwnerAndSigned(@Param("ownerId") Long ownerId);
 

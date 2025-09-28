@@ -13,8 +13,12 @@ public class CSR {
     @GeneratedValue
     private Long id;
 
+    @Column(name = "owner_id", nullable = false)
     private Long ownerId;
-    private String caName;
+
+    @Column(name = "ca_id")
+    private Long caId;
+
     private Integer validityDays;
     private String commonName; //iz csr subjecta npr. to je obicno domen www.ftn.com
     private String organization;
@@ -25,7 +29,8 @@ public class CSR {
     private boolean signatureValid;
     @Lob
     private String pem;
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private CSRStatus status;
     private LocalDateTime createdAt;
 
     public Long getId() {
@@ -44,12 +49,12 @@ public class CSR {
         this.ownerId = ownerId;
     }
 
-    public String getCaName() {
-        return caName;
+    public Long getCaId() {
+        return caId;
     }
 
-    public void setCaName(String caName) {
-        this.caName = caName;
+    public void setCaId(Long caId) {
+        this.caId = caId;
     }
 
     public Integer getValidityDays() {
@@ -124,11 +129,11 @@ public class CSR {
         this.pem = pem;
     }
 
-    public String getStatus() {
+    public CSRStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(CSRStatus status) {
         this.status = status;
     }
 

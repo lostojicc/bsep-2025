@@ -1,6 +1,9 @@
 package com.bsep.pki_system.service;
 
 import com.bsep.pki_system.model.CSR;
+import com.bsep.pki_system.model.CSRStatus;
+import com.bsep.pki_system.model.User;
+import com.bsep.pki_system.model.UserRole;
 import com.bsep.pki_system.repository.CsrRepository;
 import com.bsep.pki_system.repository.UserRepository;
 import jakarta.transaction.Transactional;
@@ -43,9 +46,10 @@ public class CsrService {
         this.userRepository = userRepository;
     }
 
+    //TODO: Omoguciti da moze da bira CA i da na osnovu validanosti njegovog sertifikata unosi validity days
     @Transactional
     public CSR handleUpload(MultipartFile file,
-                            String caName,
+                            Long caId,
                             int validityDays,
                             String userEmails,
                             String clientIp) throws Exception {
@@ -53,6 +57,10 @@ public class CsrService {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("CSR file is required");
         }
+
+        User ca = userRepository.findById(caId)
+                .filter(u -> u.getRole() == UserRole.CA)
+                .orElseThrow(() -> new IllegalArgumentException("CA user not found"));
 
         String pem = new String(file.getBytes(), StandardCharsets.UTF_8);
         if (!pem.contains("-----BEGIN CERTIFICATE REQUEST-----")) {
@@ -100,7 +108,7 @@ public class CsrService {
 
         CSR entity = new CSR();
         entity.setOwnerId(ownerId);
-        entity.setCaName(caName);
+        entity.setCaId(caId);
         entity.setValidityDays(validityDays);
         entity.setCommonName(cn);
         entity.setOrganization(org);
@@ -110,13 +118,13 @@ public class CsrService {
         entity.setCsrFingerprint(fingerprint);
         entity.setSignatureValid(true);
         entity.setPem(pem);
-        entity.setStatus("PENDING");
+        entity.setStatus(CSRStatus.PENDING);
         entity.setCreatedAt(LocalDateTime.now());
 
         CSR saved = csrRepository.save(entity);
 
-        logger.info("CSR uploaded: user={}, ip={}, fingerprint={}, caName={}, validityDays={}",
-                userEmails, clientIp, fingerprint, caName, validityDays);
+        logger.info("CSR uploaded: user={}, ip={}, fingerprint={}, caId={}, validityDays={}",
+                userEmails, clientIp, fingerprint, caId, validityDays);
 
         return saved;
     }

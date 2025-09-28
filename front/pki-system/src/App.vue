@@ -63,6 +63,12 @@ onMounted(()=>{
               >
                 Certificates
               </RouterLink>
+              <RouterLink
+                to="/csr"
+                class="hover:text-gray-200"
+              >
+                CSR upload
+              </RouterLink>
             </template>
           </div>
 

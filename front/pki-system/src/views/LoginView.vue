@@ -117,7 +117,14 @@ const login = async () => {
         <RouterLink to="/register" class="font-semibold text-indigo-600 hover:text-indigo-500">
           Register here now!
         </RouterLink>
+      </p> 
+      <p class="mt-8 text-center text-xs text-gray-100">
+        <RouterLink to="/recovery" class="font-semibold text-indigo-600 hover:text-indigo-500">
+        Forgot password?
+        </RouterLink>
       </p>
+
+
     </div>
   </div>
 </template>

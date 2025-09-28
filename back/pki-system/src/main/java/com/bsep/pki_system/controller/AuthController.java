@@ -1,9 +1,6 @@
 package com.bsep.pki_system.controller;
 
-import com.bsep.pki_system.dto.ChangePasswordDTO;
-import com.bsep.pki_system.dto.LoginDTO;
-import com.bsep.pki_system.dto.LoginResponseDTO;
-import com.bsep.pki_system.dto.RegisterDTO;
+import com.bsep.pki_system.dto.*;
 import com.bsep.pki_system.jwt.JwtService;
 import com.bsep.pki_system.model.User;
 import com.bsep.pki_system.model.UserRole;
@@ -76,6 +73,34 @@ public class AuthController {
         return ResponseEntity.ok(new LoginResponseDTO(token,user.getId(),user.getEmail(),user.getRole().toString(), user.isCaPasswordChanged()));
     }
 
+    @PostMapping("/recovery")
+    public ResponseEntity<?> recovery(@RequestBody ForgotPasswordDTO request) {
+
+        if (request.getEmail() == null || request.getEmail().isEmpty()) {
+            return ResponseEntity.badRequest().body("Email is required");
+        }
+        try {
+            userService.forgotPassword(request.getEmail());
+            return ResponseEntity.ok("Password reset link has been sent to your email.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Something went wrong");
+        }
+
+    }
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordDTO request) {
+        try {
+            userService.resetPassword(request.getToken(), request.getNewPassword());
+            return ResponseEntity.ok("Password has been reset successfully.");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to reset password.");
+        }
+    }
     @GetMapping("/activate")
     public ResponseEntity<String> activateUser(@RequestParam("token") String token) {
         try {

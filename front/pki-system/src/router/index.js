@@ -9,6 +9,7 @@ import RegisterCaView from "../views/RegisterCaView.vue";
 import CertificatesView from "../views/CertificatesView.vue";
 import AccountRecoveryView from "../views/AccountRecoveryView.vue";
 import ResetPasswordView from "../views/ResetPasswordView.vue";
+import CSRUploadView from "../views/CSRUploadView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -23,6 +24,7 @@ const router = createRouter({
     { path: "/certificates", name: "certificates", component: CertificatesView, meta: { requiresAuth: true } },
     { path: "/recovery", name: "recovery", component: AccountRecoveryView},
     {path: "/reset-password", name: "ResetPassword", component: ResetPasswordView},
+    { path: "/csr", name: "CSR", component: CSRUploadView, meta: {requiresAuth: true, allowedRoles: ["BASIC"]}}
   ]
 });
 

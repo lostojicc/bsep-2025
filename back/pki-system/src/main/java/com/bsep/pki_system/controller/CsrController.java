@@ -31,9 +31,9 @@ public class CsrController {
     }
 
     @PostMapping("/api/csr/upload")
-//    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<?> uploadCsr(@RequestParam("file") MultipartFile file,
-                                       @RequestParam("caName") String caName,
+                                       @RequestParam("caId") Long caId,
                                        @RequestParam("validityDays") int validityDays
                                        , HttpServletRequest request) {
 
@@ -42,7 +42,7 @@ public class CsrController {
         String clientIp = request.getRemoteAddr(); //opkusacu za logove
 
         try{
-            CSR savedCSR = csrService.handleUpload(file, caName, validityDays, email, clientIp);
+            CSR savedCSR = csrService.handleUpload(file, caId, validityDays, email, clientIp);
 
             Map<String, Object> response = new HashMap<>();
             response.put("id", savedCSR.getId());

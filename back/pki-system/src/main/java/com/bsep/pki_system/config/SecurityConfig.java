@@ -30,7 +30,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/register", "/auth/login", "/auth/activate").permitAll()
+                        .requestMatchers("/auth/register", "/auth/login", "/auth/activate", "/auth/recovery", "/auth/reset-password").permitAll()
                         //.requestMatchers("/csr/api/csr/upload").permitAll() // allow upload without auth
 
                         .anyRequest().authenticated()

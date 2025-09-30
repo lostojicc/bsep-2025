@@ -12,6 +12,8 @@ import jakarta.annotation.PostConstruct;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.asn1.x509.BasicConstraints;
+import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.KeyUsage;
 import org.bouncycastle.cert.CertIOException;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
@@ -206,15 +208,12 @@ public class CertificateService {
         return pem.toString();
     }
 
-    public void issueCACertificate(CertificateIssueDTO issue, Long issuerId) throws Exception {
+    public void issueCertificate(CertificateIssueDTO issue, Long issuerId) throws Exception {
         Certificate signingCertificate = certificateRepository.findById(issue.getIssuerCertificateId())
                 .orElseThrow(() -> new RuntimeException("Certificate not found"));
 
         User subject = userRepository.findById(issue.getSubjectId())
-                .orElseThrow(() -> new CertificateGenerationException("CA user not found", null));
-
-        if (subject.getRole() != UserRole.CA)
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Belaj user");
+                .orElseThrow(() -> new CertificateGenerationException("User not found", null));
 
         Long signingCertificateOwnerId = signingCertificate.getOwner().getId();
         if (!signingCertificateOwnerId.equals(issuerId))
@@ -241,21 +240,20 @@ public class CertificateService {
         PrivateKey issuerPrivateKey = (PrivateKey) ks.getKey(alias, decryptedPassword.toCharArray());
 
         // Convert issuer chain to BC X509Certificate
-        List<X509Certificate> issuerChainBC = new ArrayList<>();
-        CertificateFactory cf = CertificateFactory.getInstance("X.509", "BC");
-        for (java.security.cert.Certificate c : ks.getCertificateChain(alias)) {
-            byte[] encoded = c.getEncoded();
-            X509Certificate bcCert = (X509Certificate) cf.generateCertificate(new ByteArrayInputStream(encoded));
-            issuerChainBC.add(bcCert);
+        java.security.cert.Certificate[] issuerChain = ks.getCertificateChain(alias);
+
+        if (issuerChain == null || issuerChain.length == 0) {
+            throw new IllegalStateException("No certificate chain found in keystore for alias: " + alias);
         }
 
         BigInteger serial = BigInteger.valueOf(System.currentTimeMillis());
         KeyPair keyPair = cryptoService.generateRSAKeyPair();
         X500Name subjectInformation = buildSubject(issue);
+        X509Certificate signingCert = (X509Certificate) ks.getCertificate(alias);
+        X500Name issuerName = X500Name.getInstance(signingCert.getSubjectX500Principal().getEncoded());
 
-        // Build the new certificate
         X509v3CertificateBuilder certificateBuilder = new JcaX509v3CertificateBuilder(
-                new X500Name(signingCertificate.getSubject()),
+                issuerName,
                 serial,
                 Date.from(issue.getValidFrom().atZone(ZoneId.systemDefault()).toInstant()),
                 Date.from(issue.getValidTo().atZone(ZoneId.systemDefault()).toInstant()),
@@ -263,10 +261,11 @@ public class CertificateService {
                 keyPair.getPublic()
         );
 
+        boolean isCA = subject.getRole().equals(UserRole.CA);
         certificateBuilder.addExtension(
                 org.bouncycastle.asn1.x509.Extension.basicConstraints,
                 true,
-                new org.bouncycastle.asn1.x509.BasicConstraints(true) // CA = true
+                new org.bouncycastle.asn1.x509.BasicConstraints(isCA) // CA = true
         );
 
         int keyUsageBits = getKeyUsageBits(issue);
@@ -282,20 +281,20 @@ public class CertificateService {
         X509Certificate newCert = new JcaX509CertificateConverter().setProvider("BC")
                 .getCertificate(certificateBuilder.build(signer));
 
-        // Build the final chain: new certificate + issuer chain (all BC)
-        List<X509Certificate> chain = new ArrayList<>();
-        chain.add(newCert);          // subject certificate first
-        chain.addAll(issuerChainBC); // issuer certificates
 
-        // Store in keystore
+        java.security.cert.Certificate[] newChain = new java.security.cert.Certificate[issuerChain.length + 1];
+        newChain[0] = newCert;
+        System.arraycopy(issuerChain, 0, newChain, 1, issuerChain.length);
+
         ks.setKeyEntry(newCert.getSerialNumber().toString(), keyPair.getPrivate(),
-                decryptedPassword.toCharArray(), chain.toArray(new X509Certificate[0]));
+                decryptedPassword.toCharArray(), newChain);
 
         try (FileOutputStream fos = new FileOutputStream("certificates/keystore_" + keystore.getId() + ".p12")) {
             ks.store(fos, decryptedPassword.toCharArray());
         }
 
-        saveCertToDb(newCert, subject, CertificateType.INTERMEDIATE, keystore);
+        CertificateType certificateType = isCA ? CertificateType.INTERMEDIATE : CertificateType.END_ENTITY;
+        saveCertToDb(newCert, subject, certificateType, keystore);
     }
 
 

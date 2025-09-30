@@ -58,12 +58,12 @@ public class CertificateController {
         }
     }
 
-    @PostMapping("/issue-ca")
+    @PostMapping("/issue-certificate")
     @PreAuthorize("hasAnyRole('ADMIN', 'CA')")
-    public ResponseEntity<String> issueCACertificate(@RequestBody CertificateIssueDTO issue, HttpServletRequest request) {
+    public ResponseEntity<String> issueCertificate(@RequestBody CertificateIssueDTO issue, HttpServletRequest request) {
         try {
             String token = JwtService.extractTokenFromRequest(request);
-            certificateService.issueCACertificate(issue, jwtService.getUserIdFromToken(token));
+            certificateService.issueCertificate(issue, jwtService.getUserIdFromToken(token));
             return ResponseEntity.ok("Certificate issued");
         } catch (Exception e) {
             e.printStackTrace();

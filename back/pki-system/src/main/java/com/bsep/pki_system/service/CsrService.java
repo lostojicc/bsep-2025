@@ -6,8 +6,14 @@ import com.bsep.pki_system.model.User;
 import com.bsep.pki_system.model.UserRole;
 import com.bsep.pki_system.repository.CsrRepository;
 import com.bsep.pki_system.repository.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.ASN1Set;
+import org.bouncycastle.asn1.pkcs.Attribute;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.asn1.x509.Extensions;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.BCStyle;
@@ -19,7 +25,6 @@ import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,28 +35,27 @@ import java.security.PublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.LocalDateTime;
-
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class CsrService {
 
     private final CsrRepository csrRepository;
-    private  final UserRepository userRepository;
+    private final UserRepository userRepository;
     private final Logger logger = LoggerFactory.getLogger(CsrService.class);
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-
-    @Autowired
     public CsrService(CsrRepository csrRepository, UserRepository userRepository) {
         this.csrRepository = csrRepository;
         this.userRepository = userRepository;
     }
 
-    //TODO: Omoguciti da moze da bira CA i da na osnovu validanosti njegovog sertifikata unosi validity days
     @Transactional
     public CSR handleUpload(MultipartFile file,
                             Long caId,
                             int validityDays,
-                            String userEmails,
+                            String userEmail,
                             String clientIp) throws Exception {
 
         if (file == null || file.isEmpty()) {
@@ -67,30 +71,32 @@ public class CsrService {
             throw new IllegalArgumentException("File is not a valid PEM CSR");
         }
 
-        // Parsiranje CSRa
-        PKCS10CertificationRequest csr;
+        // Parse CSR
+        PKCS10CertificationRequest csrHolder;
         try (PEMParser pemParser = new PEMParser(new StringReader(pem))) {
             Object parsed = pemParser.readObject();
             if (!(parsed instanceof PKCS10CertificationRequest)) {
                 throw new IllegalArgumentException("Invalid CSR format");
             }
-            csr = (PKCS10CertificationRequest) parsed;
+            csrHolder = (PKCS10CertificationRequest) parsed;
         }
 
         ContentVerifierProvider verifier = new JcaContentVerifierProviderBuilder()
                 .setProvider("BC")
-                .build(csr.getSubjectPublicKeyInfo());
+                .build(csrHolder.getSubjectPublicKeyInfo());
 
-        if (!csr.isSignatureValid(verifier)) {
+        if (!csrHolder.isSignatureValid(verifier)) {
             throw new IllegalArgumentException("CSR signature is invalid");
         }
 
-        X500Name subject = csr.getSubject();
+        // Extract subject data
+        X500Name subject = csrHolder.getSubject();
         String cn = getRdnValue(subject, BCStyle.CN);
         String org = getRdnValue(subject, BCStyle.O);
         String email = getRdnValue(subject, BCStyle.E);
 
-        PublicKey pubKey = new JcaPEMKeyConverter().setProvider("BC").getPublicKey(csr.getSubjectPublicKeyInfo());
+        // Extract public key
+        PublicKey pubKey = new JcaPEMKeyConverter().setProvider("BC").getPublicKey(csrHolder.getSubjectPublicKeyInfo());
         String alg = pubKey.getAlgorithm();
         int keySize = getKeySize(pubKey);
 
@@ -98,14 +104,37 @@ public class CsrService {
             throw new IllegalArgumentException("RSA key too small, minimum 2048 bits required");
         }
 
-        byte[] derEncoded = csr.getEncoded();
+        // Compute fingerprint
+        byte[] derEncoded = csrHolder.getEncoded();
         MessageDigest md = MessageDigest.getInstance("SHA-256");
         String fingerprint = Hex.toHexString(md.digest(derEncoded));
 
-        Long ownerId = userRepository.findByEmail(userEmails)
+        // Get owner ID
+        Long ownerId = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"))
                 .getId();
 
+        // Extract requested extensions
+        Extensions extensions = null;
+        Attribute[] attrs = csrHolder.getAttributes(PKCSObjectIdentifiers.pkcs_9_at_extensionRequest);
+        if (attrs != null && attrs.length > 0) {
+            ASN1Set attrValues = attrs[0].getAttrValues();
+            if (attrValues.size() > 0) {
+                extensions = Extensions.getInstance(attrValues.getObjectAt(0));
+            }
+        }
+
+        String extensionsJson = null;
+        if (extensions != null) {
+            Map<String, Object> extMap = new HashMap<>();
+            for (ASN1ObjectIdentifier oid : extensions.getExtensionOIDs()) {
+                ASN1Primitive val = extensions.getExtension(oid).getParsedValue().toASN1Primitive();
+                extMap.put(oid.getId(), val.toString());
+            }
+            extensionsJson = objectMapper.writeValueAsString(extMap);
+        }
+
+        // Save CSR
         CSR entity = new CSR();
         entity.setOwnerId(ownerId);
         entity.setCaId(caId);
@@ -120,11 +149,13 @@ public class CsrService {
         entity.setPem(pem);
         entity.setStatus(CSRStatus.PENDING);
         entity.setCreatedAt(LocalDateTime.now());
+        entity.setRequestedExtensionsJson(extensionsJson);
+        entity.setRejectionReason(null); // initially null
 
         CSR saved = csrRepository.save(entity);
 
         logger.info("CSR uploaded: user={}, ip={}, fingerprint={}, caId={}, validityDays={}",
-                userEmails, clientIp, fingerprint, caId, validityDays);
+                userEmail, clientIp, fingerprint, caId, validityDays);
 
         return saved;
     }
@@ -140,6 +171,6 @@ public class CsrService {
         } else if (pubKey instanceof ECPublicKey) {
             return ((ECPublicKey) pubKey).getParams().getCurve().getField().getFieldSize();
         }
-        return -1; // nepoznato
+        return -1;
     }
 }

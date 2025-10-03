@@ -7,9 +7,14 @@ import com.bsep.pki_system.exceptions.CertificateGenerationException;
 import com.bsep.pki_system.model.*;
 import com.bsep.pki_system.model.Certificate;
 import com.bsep.pki_system.repository.CertificateRepository;
+import com.bsep.pki_system.repository.CsrRepository;
 import com.bsep.pki_system.repository.KeystoreRepository;
 import com.bsep.pki_system.repository.UserRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import jakarta.transaction.Transactional;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
@@ -46,17 +51,20 @@ public class CertificateService {
     private final UserRepository userRepository;
     private final CryptoService cryptoService;
     private final KeystoreRepository keystoreRepository;
+    private final CsrRepository csrRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${aes.master.key}")
     private String masterKeyBase64;
 
     private SecretKey masterKey;
 
-    public CertificateService(CertificateRepository certificateRepository, UserRepository userRepository, CryptoService cryptoService, KeystoreRepository keystoreRepository) {
+    public CertificateService(CertificateRepository certificateRepository, UserRepository userRepository, CryptoService cryptoService, KeystoreRepository keystoreRepository, CsrRepository csrRepository) {
         this.certificateRepository = certificateRepository;
         this.userRepository = userRepository;
         this.cryptoService = cryptoService;
         this.keystoreRepository = keystoreRepository;
+        this.csrRepository = csrRepository;
     }
 
     @PostConstruct
@@ -93,6 +101,136 @@ public class CertificateService {
         }
 
         return certificateDTOList;
+    }
+
+    @Transactional
+    public CSR approveCsr(Long csrId, Long caUserId, Long signingCertificateId, String manualRejectionReason) throws Exception {
+        CSR csr = csrRepository.findById(csrId)
+                .orElseThrow(() -> new IllegalArgumentException("CSR not found"));
+
+        if (csr.getStatus() != CSRStatus.PENDING) {
+            throw new IllegalStateException("CSR has already been processed");
+        }
+
+        // Manual rejection by CA
+        if (manualRejectionReason != null && !manualRejectionReason.isBlank()) {
+            csr.setStatus(CSRStatus.REJECTED);
+            csr.setRejectionReason(manualRejectionReason);
+            csrRepository.save(csr);
+            return csr;
+        }
+
+        // Load signing certificate
+        Certificate signingCert = certificateRepository.findById(signingCertificateId)
+                .orElseThrow(() -> new IllegalArgumentException("Signing certificate not found"));
+
+        // Load keystore containing signing certificate
+        Keystore keystore = keystoreRepository.findById(signingCert.getKeystore().getId())
+                .orElseThrow(() -> new IllegalStateException("Keystore not found"));
+
+        String decryptedPassword = cryptoService.decryptAES(keystore.getEncryptedPassword(), masterKey);
+        KeyStore ks = KeyStore.getInstance("PKCS12");
+        try (FileInputStream fis = new FileInputStream("certificates/keystore_" + keystore.getId() + ".p12")) {
+            ks.load(fis, decryptedPassword.toCharArray());
+        }
+
+        // Load signing certificate private key
+        PublicKey csrPublicKey = cryptoService.loadPublicKeyFromPem(csr.getPem()); // assumes helper method exists
+
+        String alias = signingCert.getAlias();
+
+        X509Certificate issuerCert = (X509Certificate) ks.getCertificate(alias);
+        X500Name issuerName = X500Name.getInstance(issuerCert.getSubjectX500Principal().getEncoded());
+
+        // Automatic validation
+        String rejectionReason = validateCsr(csr, issuerCert, csrPublicKey);
+        if (rejectionReason != null) {
+            csr.setStatus(CSRStatus.REJECTED);
+            csr.setRejectionReason(rejectionReason);
+            csrRepository.save(csr);
+            return csr;
+        }
+
+        // Build certificate
+        BigInteger serial = BigInteger.valueOf(System.currentTimeMillis());
+        Date notBefore = Date.from(csr.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant());
+        Date notAfter = Date.from(csr.getCreatedAt().plusDays(csr.getValidityDays())
+                .atZone(ZoneId.systemDefault()).toInstant());
+
+        X500Name subjectName = new X500Name(String.format("CN=%s,O=%s,EMAILADDRESS=%s",
+                csr.getCommonName(), csr.getOrganization(), csr.getEmail()));
+
+        X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(
+                issuerName,
+                serial,
+                notBefore,
+                notAfter,
+                subjectName,
+                csrPublicKey
+        );
+
+        // Apply extensions from CSR
+        if (csr.getRequestedExtensionsJson() != null && !csr.getRequestedExtensionsJson().isBlank()) {
+            Map<String, String> extMap = objectMapper.readValue(csr.getRequestedExtensionsJson(),
+                    new TypeReference<Map<String, String>>() {});
+            for (Map.Entry<String, String> e : extMap.entrySet()) {
+                ASN1ObjectIdentifier oid = new ASN1ObjectIdentifier(e.getKey());
+                byte[] value = Base64.getDecoder().decode(e.getValue());
+                certBuilder.addExtension(oid, false, value); // non-critical by default
+            }
+        }
+
+        PrivateKey issuerPrivateKey = (PrivateKey) ks.getKey(alias, decryptedPassword.toCharArray());
+
+        // Sign certificate with issuer
+        ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA").build(issuerPrivateKey);
+        X509Certificate newCert = new JcaX509CertificateConverter().setProvider("BC")
+                .getCertificate(certBuilder.build(signer));
+
+        // Store as TrustedCertificateEntry (no private key)
+        ks.setCertificateEntry(newCert.getSerialNumber().toString(), newCert);
+        try (FileOutputStream fos = new FileOutputStream("certificates/keystore_" + keystore.getId() + ".p12")) {
+            ks.store(fos, decryptedPassword.toCharArray());
+        }
+
+        //saveCertToDb(X509Certificate cert, User user, CertificateType type, Keystore keystore)
+        User csrOwner = userRepository.findById(csr.getOwnerId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found", null));
+        saveCertToDb(newCert, csrOwner, CertificateType.END_ENTITY, keystore);
+
+        csr.setStatus(CSRStatus.SIGNED);
+        csrRepository.save(csr);
+        return csr;
+    }
+
+    private String validateCsr(CSR csr, X509Certificate issuerCert, PublicKey csrPublicKey) {
+        // Check dates
+        if (csr.getValidityDays() == null || csr.getValidityDays() <= 0) {
+            return "Invalid validity period";
+        }
+        Date notBefore = Date.from(csr.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant());
+        Date notAfter = Date.from(csr.getCreatedAt().plusDays(csr.getValidityDays())
+                .atZone(ZoneId.systemDefault()).toInstant());
+        if (notAfter.after(issuerCert.getNotAfter()) || notBefore.before(issuerCert.getNotBefore())) {
+            return "CSR validity period exceeds issuer certificate";
+        }
+
+        // Check mandatory fields
+        if (csr.getCommonName() == null || csr.getCommonName().isBlank()) return "Missing CN";
+        if (csr.getOrganization() == null || csr.getOrganization().isBlank()) return "Missing O";
+        if (csr.getEmail() == null || csr.getEmail().isBlank()) return "Missing Email";
+
+        // Check public key algorithm & size
+        if ("RSA".equalsIgnoreCase(csrPublicKey.getAlgorithm()) &&
+                ((java.security.interfaces.RSAPublicKey) csrPublicKey).getModulus().bitLength() < 2048) {
+            return "RSA key too small";
+        }
+        if ("EC".equalsIgnoreCase(csrPublicKey.getAlgorithm()) &&
+                ((java.security.interfaces.ECPublicKey) csrPublicKey).getParams().getCurve().getField().getFieldSize() < 256) {
+            return "EC key too small";
+        }
+
+        return null; // valid
     }
 
     public List<CertificateDTO> getAllSignedCertByOwnerId(Long userId){

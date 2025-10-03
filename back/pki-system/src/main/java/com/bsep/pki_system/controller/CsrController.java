@@ -31,7 +31,7 @@ public class CsrController {
     }
 
     @PostMapping("/api/csr/upload")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('BASIC')")
     public ResponseEntity<?> uploadCsr(@RequestParam("file") MultipartFile file,
                                        @RequestParam("caId") Long caId,
                                        @RequestParam("validityDays") int validityDays

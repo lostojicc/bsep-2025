@@ -4,6 +4,8 @@ import com.bsep.pki_system.dto.CertificateIssueDTO;
 import com.bsep.pki_system.dto.CertificateDTO;
 import com.bsep.pki_system.exceptions.CertificateGenerationException;
 import com.bsep.pki_system.jwt.JwtService;
+import com.bsep.pki_system.model.CSR;
+import com.bsep.pki_system.model.CSRStatus;
 import com.bsep.pki_system.model.Certificate;
 import com.bsep.pki_system.model.UserRole;
 import com.bsep.pki_system.service.CertificateService;
@@ -13,10 +15,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/certificate")
@@ -71,6 +76,36 @@ public class CertificateController {
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/issue-csr")
+    @PreAuthorize("hasRole('CA')")
+    public ResponseEntity<?> approveCsr(
+            @RequestParam Long csrId,
+            @RequestParam Long signingCertificateId,
+            @RequestParam(required = false) String manualRejectionReason,
+            HttpServletRequest request
+    ) {
+        try {
+            String token = JwtService.extractTokenFromRequest(request);
+            CSR csr = certificateService.approveCsr(csrId, jwtService.getUserIdFromToken(token), signingCertificateId, manualRejectionReason);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("csrId", csrId);
+            response.put("status", csr.getStatus());
+            response.put("rejectionReason", csr.getRejectionReason()); // will be null if signed
+            response.put("message", switch (csr.getStatus()) {
+                case SIGNED -> "CSR approved and certificate issued";
+                case REJECTED -> "CSR rejected: " + csr.getRejectionReason();
+                default -> "CSR processing completed";
+            });
+
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server error: " + e.getMessage());
         }
     }
 

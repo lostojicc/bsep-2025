@@ -1,12 +1,16 @@
 package com.bsep.pki_system.service;
 
 
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
+import java.io.StringReader;
 import java.security.*;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.Base64;
@@ -68,6 +72,21 @@ public class CryptoService {
 
         byte[] plainBytes = cipher.doFinal(cipherText);
         return new String(plainBytes);
+    }
+
+    public PublicKey loadPublicKeyFromPem(String pemCsr) throws Exception {
+        try (PEMParser pemParser = new PEMParser(new StringReader(pemCsr))) {
+            Object obj = pemParser.readObject();
+            if (!(obj instanceof PKCS10CertificationRequest)) {
+                throw new IllegalArgumentException("Provided PEM is not a valid CSR");
+            }
+
+            PKCS10CertificationRequest csr = (PKCS10CertificationRequest) obj;
+
+            return new JcaPEMKeyConverter()
+                    .setProvider("BC")
+                    .getPublicKey(csr.getSubjectPublicKeyInfo());
+        }
     }
 
     /**

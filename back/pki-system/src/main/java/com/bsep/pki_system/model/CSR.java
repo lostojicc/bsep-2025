@@ -1,9 +1,7 @@
 package com.bsep.pki_system.model;
 
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
-import java.util.Locale;
 
 @Entity
 @Table(name="csr_request")
@@ -20,21 +18,46 @@ public class CSR {
     private Long caId;
 
     private Integer validityDays;
-    private String commonName; //iz csr subjecta npr. to je obicno domen www.ftn.com
+
+    private String commonName; // iz CSR subjecta npr. www.ftn.com
     private String organization;
     private String email;
+
     private String publicKeyAlg; // RSA, EC npr
     private Integer publicKeySize;
-    private String csrFingerprint; // obicno je to sha-256
+
+    private String csrFingerprint; // obično SHA-256
+
     private boolean signatureValid;
+
     @Lob
     private String pem;
+
     @Enumerated(EnumType.STRING)
     private CSRStatus status;
+
     private LocalDateTime createdAt;
+
+    // New: serialized CSR extensions (KeyUsage, EKU, SANs, etc.)
+    @Lob
+    @Column(name = "requested_extensions", columnDefinition = "TEXT")
+    private String requestedExtensionsJson;
+
+    @Column(name = "rejection_reason")
+    private String rejectionReason;
+
+    // === Getters & Setters ===
 
     public Long getId() {
         return id;
+    }
+
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
     }
 
     public void setId(Long id) {
@@ -143,5 +166,13 @@ public class CSR {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getRequestedExtensionsJson() {
+        return requestedExtensionsJson;
+    }
+
+    public void setRequestedExtensionsJson(String requestedExtensionsJson) {
+        this.requestedExtensionsJson = requestedExtensionsJson;
     }
 }

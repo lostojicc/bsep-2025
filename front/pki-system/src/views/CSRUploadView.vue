@@ -20,9 +20,9 @@
         <label class="block text-sm font-medium mb-1">Certification Authority</label>
         <select v-model="selectedCaId" class="w-full border rounded p-2" required>
           <option disabled value="">-- Select CA --</option>
-          <option v-for="ca in cas" :key="ca.id" :value="ca.id">
-            {{ ca.name }} (max {{ ca.maxValidityDays }} days)
-          </option>
+         <option v-for="ca in cas" :key="ca.id" :value="ca.id">
+            {{ ca.name }} ({{ ca.email }})
+         </option>
         </select>
       </div>
 
@@ -70,36 +70,55 @@ const onFileChange = (e) => {
 
 const fetchCas = async () => {
   try {
-    const res = await axios.get("/api/ca"); // <-- your endpoint to list CAs
+    const res = await axios.get("/user/cas");
     cas.value = res.data;
   } catch (err) {
     console.error("Failed to load CAs", err);
   }
 };
 
-// const submitCsr = async () => {
-//   if (!file.value) {
-//     message.value = "Please upload a CSR file.";
-//     return;
-//   }
+const submitCsr = async () => {
+  if (!file.value) {
+    message.value = "Please upload a CSR file.";
+    return;
+  }
+  if (!selectedCaId.value) {
+    message.value = "Please select a Certification Authority.";
+    return;
+  }
+  if (!validityDays.value || validityDays.value <= 0) {
+    message.value = "Please enter a valid number of days for validity.";
+    return;
+  }
 
-//   const formData = new FormData();
-//   formData.append("file", file.value);
-//   formData.append("caId", selectedCaId.value);
-//   formData.append("validityDays", validityDays.value);
+  const formData = new FormData();
+  formData.append("file", file.value);
+  formData.append("caId", selectedCaId.value);
+  formData.append("validityDays", validityDays.value);
 
-//   try {
-//     loading.value = true;
-//     const res = await axios.post("/api/csr/upload", formData, {
-//       headers: { "Content-Type": "multipart/form-data" },
-//     });
-//     message.value = `CSR uploaded successfully. Fingerprint: ${res.data.fingerprint}`;
-//   } catch (err) {
-//     message.value = err.response?.data || "Upload failed.";
-//   } finally {
-//     loading.value = false;
-//   }
-// };
+  try {
+    loading.value = true;
+    const res = await axios.post("/csr/api/csr/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
 
-onMounted();
+    message.value = res.data?.message || "CSR uploaded successfully.";
+
+    file.value = null;
+    selectedCaId.value = "";
+    validityDays.value = "";
+    
+    const fileInput = document.querySelector('input[type="file"]');
+    if (fileInput) fileInput.value = null;
+
+  } catch (err) {
+    message.value = err.response?.data?.message || "Upload failed.";
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchCas();
+});
 </script>

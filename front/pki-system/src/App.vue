@@ -64,6 +64,7 @@ onMounted(()=>{
                 Certificates
               </RouterLink>
               <RouterLink
+              v-if="authState.userRole === 'BASIC'"
                 to="/csr"
                 class="hover:text-gray-200"
               >

@@ -1,5 +1,6 @@
 package com.bsep.pki_system.service;
 
+import com.bsep.pki_system.dto.CaUserDTO;
 import com.bsep.pki_system.dto.RegisterDTO;
 import com.bsep.pki_system.model.PasswordResetToken;
 import com.bsep.pki_system.model.User;
@@ -15,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -190,6 +192,17 @@ public class UserService {
         }
     }
 
+    public List<CaUserDTO> getAllCAs() {
+        return userRepository.findByRole(UserRole.CA)
+                .stream()
+                .map(user -> new CaUserDTO(
+                        user.getId(),
+                        user.getName(),
+                        user.getSurname(),
+                        user.getEmail()
+                ))
+                .toList();
 
+    }
 
 }

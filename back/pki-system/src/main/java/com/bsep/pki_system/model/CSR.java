@@ -1,7 +1,9 @@
 package com.bsep.pki_system.model;
 
+import com.vladmihalcea.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+
 
 @Entity
 @Table(name="csr_request")

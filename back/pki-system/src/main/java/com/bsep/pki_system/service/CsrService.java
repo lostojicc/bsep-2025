@@ -8,12 +8,13 @@ import com.bsep.pki_system.repository.CsrRepository;
 import com.bsep.pki_system.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
+import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.pkcs.Attribute;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
-import org.bouncycastle.asn1.x509.Extensions;
+import org.bouncycastle.asn1.x509.*;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.BCStyle;
@@ -35,8 +36,8 @@ import java.security.PublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class CsrService {
@@ -134,6 +135,8 @@ public class CsrService {
             extensionsJson = objectMapper.writeValueAsString(extMap);
         }
 
+
+
         // Save CSR
         CSR entity = new CSR();
         entity.setOwnerId(ownerId);
@@ -150,7 +153,7 @@ public class CsrService {
         entity.setStatus(CSRStatus.PENDING);
         entity.setCreatedAt(LocalDateTime.now());
         entity.setRequestedExtensionsJson(extensionsJson);
-        entity.setRejectionReason(null); // initially null
+        entity.setRejectionReason(null);
 
         CSR saved = csrRepository.save(entity);
 
